@@ -13,145 +13,122 @@ class TrackerRepository {
   
   TrackerRepository(this._supabase, this._deviceIdService);
   
-  /// Stream of clustered buses for a specific route
-  Stream<List<ClusteredBus>> watchBusesOnRoute(String routeId) {
+  /// Stream of active bus sessions for a route
+  Stream<List<BusSession>> watchBusesOnRoute(String routeId) {
     return _supabase
-        .from('clustered_buses')
+        .from('bus_sessions')
         .stream(primaryKey: ['id'])
-        .eq('route_id', routeId)
-        .map((rows) => rows.map((r) => ClusteredBus.fromJson(r)).toList());
+        .map((rows) => rows
+            .where((r) => r['route_id'] == routeId)
+            .map((r) => BusSession.fromJson(r))
+            .toList());
   }
   
-  /// Stream of all clustered buses (for overview map)
-  Stream<List<ClusteredBus>> watchAllBuses() {
+  /// Stream of all active bus sessions
+  Stream<List<BusSession>> watchAllBuses() {
     return _supabase
-        .from('clustered_buses')
+        .from('bus_sessions')
         .stream(primaryKey: ['id'])
-        .map((rows) => rows.map((r) => ClusteredBus.fromJson(r)).toList());
+        .map((rows) => rows.map((r) => BusSession.fromJson(r)).toList());
   }
   
-  /// Start tracking on a route
-  /// Returns the tracker ID
-  Future<String?> startTracking({
+  /// Join a bus session (or create one)
+  /// Returns a record with (sessionId, isBroadcaster)
+  Future<({String sessionId, bool isBroadcaster})> joinSession({
     required String routeId,
     required double latitude,
     required double longitude,
-    double? heading,
-    double? speed,
-    double? accuracy,
+    required String destinationStopId,
   }) async {
     final deviceId = await _deviceIdService.getDeviceId();
     
-    // Use the upsert_tracker_location function
-    final response = await _supabase.rpc('upsert_tracker_location', params: {
+    // Call the join_bus_session RPC
+    final response = await _supabase.rpc('join_bus_session', params: {
       'p_device_id': deviceId,
       'p_route_id': routeId,
-      'p_longitude': longitude,
-      'p_latitude': latitude,
-      'p_heading': heading,
-      'p_speed': speed,
-      'p_accuracy': accuracy,
+      'p_lat': latitude,
+      'p_lng': longitude,
+      'p_destination_stop_id': destinationStopId,
     });
     
-    return response as String?;
+    // Response is a list of rows (should be length 1)
+    final data = (response as List).first;
+    return (
+      sessionId: data['session_id'] as String,
+      isBroadcaster: data['is_broadcaster'] as bool,
+    );
   }
   
-  /// Update tracker location
+  /// Update session location (only if broadcaster)
   Future<void> updateLocation({
+    required String sessionId,
     required double latitude,
     required double longitude,
     double? heading,
     double? speed,
-    double? accuracy,
   }) async {
     final deviceId = await _deviceIdService.getDeviceId();
     
-    // Get current route
-    final tracker = await _supabase
-        .from('active_trackers')
-        .select('route_id')
-        .eq('device_id', deviceId)
-        .maybeSingle();
-    
-    if (tracker == null) return;
-    
-    await _supabase.rpc('upsert_tracker_location', params: {
+    await _supabase.rpc('update_session_location', params: {
+      'p_session_id': sessionId,
       'p_device_id': deviceId,
-      'p_route_id': tracker['route_id'],
-      'p_longitude': longitude,
-      'p_latitude': latitude,
+      'p_lat': latitude,
+      'p_lng': longitude,
       'p_heading': heading,
       'p_speed': speed,
-      'p_accuracy': accuracy,
     });
   }
   
-  /// Stop tracking
-  Future<void> stopTracking() async {
+  /// Leave session
+  /// Returns new broadcaster ID if a handoff occurred, or null
+  Future<String?> leaveSession() async {
     final deviceId = await _deviceIdService.getDeviceId();
     
-    // Set device context for RLS
-    await _supabase.rpc('set_device_context', params: {
+    final response = await _supabase.rpc('leave_bus_session', params: {
       'p_device_id': deviceId,
     });
     
-    await _supabase
-        .from('active_trackers')
-        .delete()
-        .eq('device_id', deviceId);
+    // Check if new broadcaster was elected
+    if (response is List && response.isNotEmpty) {
+      final data = response.first;
+      return data['new_broadcaster_id'] as String?;
+    }
+    return null;
   }
   
-  /// Check if currently tracking
+  /// Listen for leadership changes (promotions)
+  /// Returns true if this device just became the broadcaster
+  Stream<bool> listenForPromotion(String sessionId) async* {
+    final deviceId = await _deviceIdService.getDeviceId();
+    
+    // Listen to changes on session_passengers for this user
+    // Note: Filtering client-side due to stream builder limitations in this version
+    yield* _supabase
+        .from('session_passengers')
+        .stream(primaryKey: ['id'])
+        .map((events) {
+          final userRow = events.where((e) => 
+            e['session_id'] == sessionId && 
+            e['device_id'] == deviceId
+          );
+          
+          if (userRow.isEmpty) return false;
+          return userRow.first['is_broadcaster'] as bool;
+        })
+        .distinct(); // Only emit when role changes
+  }
+  
+  /// Check if currently in a session
   Future<bool> isTracking() async {
     final deviceId = await _deviceIdService.getDeviceId();
     
     final result = await _supabase
-        .from('active_trackers')
+        .from('session_passengers')
         .select('id')
         .eq('device_id', deviceId)
         .maybeSingle();
     
     return result != null;
-  }
-  
-  /// Get current tracking status
-  Future<ActiveTracker?> getCurrentTracker() async {
-    final deviceId = await _deviceIdService.getDeviceId();
-    
-    final result = await _supabase
-        .from('active_trackers')
-        .select()
-        .eq('device_id', deviceId)
-        .maybeSingle();
-    
-    if (result == null) return null;
-    
-    // Parse location from PostGIS format
-    final location = result['location'] as String?;
-    double lat = 0, lng = 0;
-    if (location != null && location.startsWith('POINT')) {
-      final match = RegExp(r'POINT\(([\d.-]+) ([\d.-]+)\)').firstMatch(location);
-      if (match != null) {
-        lng = double.parse(match.group(1)!);
-        lat = double.parse(match.group(2)!);
-      }
-    }
-    
-    return ActiveTracker(
-      id: result['id'],
-      deviceId: result['device_id'],
-      routeId: result['route_id'],
-      latitude: lat,
-      longitude: lng,
-      heading: (result['heading'] as num?)?.toDouble(),
-      speed: (result['speed'] as num?)?.toDouble(),
-      accuracy: (result['accuracy'] as num?)?.toDouble(),
-      clusterId: result['cluster_id'],
-      isValid: result['is_valid'] ?? true,
-      lastUpdated: result['last_updated'] != null 
-          ? DateTime.parse(result['last_updated']) 
-          : null,
-    );
   }
 }
 
@@ -164,13 +141,14 @@ final trackerRepositoryProvider = Provider<TrackerRepository>((ref) {
 });
 
 /// Provider for buses on a specific route
-final busesOnRouteProvider = StreamProvider.family<List<ClusteredBus>, String>((ref, routeId) {
+/// Provider for buses on a specific route
+final busesOnRouteProvider = StreamProvider.family<List<BusSession>, String>((ref, routeId) {
   final repo = ref.watch(trackerRepositoryProvider);
   return repo.watchBusesOnRoute(routeId);
 });
 
 /// Provider for all buses
-final allBusesProvider = StreamProvider<List<ClusteredBus>>((ref) {
+final allBusesProvider = StreamProvider<List<BusSession>>((ref) {
   final repo = ref.watch(trackerRepositoryProvider);
   return repo.watchAllBuses();
 });

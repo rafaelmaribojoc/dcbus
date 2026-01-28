@@ -582,4 +582,282 @@ as DateTime?,
 
 }
 
+/// @nodoc
+mixin _$BusSession {
+
+ String get id;@JsonKey(name: 'route_id') String get routeId;@JsonKey(name: 'broadcaster_id') String? get broadcasterId; double get latitude; double get longitude; double? get heading; double? get speed;@JsonKey(name: 'updated_at') DateTime? get updatedAt;
+/// Create a copy of BusSession
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusSessionCopyWith<BusSession> get copyWith => _$BusSessionCopyWithImpl<BusSession>(this as BusSession, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusSession&&(identical(other.id, id) || other.id == id)&&(identical(other.routeId, routeId) || other.routeId == routeId)&&(identical(other.broadcasterId, broadcasterId) || other.broadcasterId == broadcasterId)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.heading, heading) || other.heading == heading)&&(identical(other.speed, speed) || other.speed == speed)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,routeId,broadcasterId,latitude,longitude,heading,speed,updatedAt);
+
+@override
+String toString() {
+  return 'BusSession(id: $id, routeId: $routeId, broadcasterId: $broadcasterId, latitude: $latitude, longitude: $longitude, heading: $heading, speed: $speed, updatedAt: $updatedAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusSessionCopyWith<$Res>  {
+  factory $BusSessionCopyWith(BusSession value, $Res Function(BusSession) _then) = _$BusSessionCopyWithImpl;
+@useResult
+$Res call({
+ String id,@JsonKey(name: 'route_id') String routeId,@JsonKey(name: 'broadcaster_id') String? broadcasterId, double latitude, double longitude, double? heading, double? speed,@JsonKey(name: 'updated_at') DateTime? updatedAt
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusSessionCopyWithImpl<$Res>
+    implements $BusSessionCopyWith<$Res> {
+  _$BusSessionCopyWithImpl(this._self, this._then);
+
+  final BusSession _self;
+  final $Res Function(BusSession) _then;
+
+/// Create a copy of BusSession
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? routeId = null,Object? broadcasterId = freezed,Object? latitude = null,Object? longitude = null,Object? heading = freezed,Object? speed = freezed,Object? updatedAt = freezed,}) {
+  return _then(_self.copyWith(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,routeId: null == routeId ? _self.routeId : routeId // ignore: cast_nullable_to_non_nullable
+as String,broadcasterId: freezed == broadcasterId ? _self.broadcasterId : broadcasterId // ignore: cast_nullable_to_non_nullable
+as String?,latitude: null == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double,longitude: null == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double,heading: freezed == heading ? _self.heading : heading // ignore: cast_nullable_to_non_nullable
+as double?,speed: freezed == speed ? _self.speed : speed // ignore: cast_nullable_to_non_nullable
+as double?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [BusSession].
+extension BusSessionPatterns on BusSession {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _BusSession value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _BusSession() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _BusSession value)  $default,){
+final _that = this;
+switch (_that) {
+case _BusSession():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _BusSession value)?  $default,){
+final _that = this;
+switch (_that) {
+case _BusSession() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'route_id')  String routeId, @JsonKey(name: 'broadcaster_id')  String? broadcasterId,  double latitude,  double longitude,  double? heading,  double? speed, @JsonKey(name: 'updated_at')  DateTime? updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _BusSession() when $default != null:
+return $default(_that.id,_that.routeId,_that.broadcasterId,_that.latitude,_that.longitude,_that.heading,_that.speed,_that.updatedAt);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'route_id')  String routeId, @JsonKey(name: 'broadcaster_id')  String? broadcasterId,  double latitude,  double longitude,  double? heading,  double? speed, @JsonKey(name: 'updated_at')  DateTime? updatedAt)  $default,) {final _that = this;
+switch (_that) {
+case _BusSession():
+return $default(_that.id,_that.routeId,_that.broadcasterId,_that.latitude,_that.longitude,_that.heading,_that.speed,_that.updatedAt);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id, @JsonKey(name: 'route_id')  String routeId, @JsonKey(name: 'broadcaster_id')  String? broadcasterId,  double latitude,  double longitude,  double? heading,  double? speed, @JsonKey(name: 'updated_at')  DateTime? updatedAt)?  $default,) {final _that = this;
+switch (_that) {
+case _BusSession() when $default != null:
+return $default(_that.id,_that.routeId,_that.broadcasterId,_that.latitude,_that.longitude,_that.heading,_that.speed,_that.updatedAt);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class _BusSession extends BusSession {
+  const _BusSession({required this.id, @JsonKey(name: 'route_id') required this.routeId, @JsonKey(name: 'broadcaster_id') this.broadcasterId, required this.latitude, required this.longitude, this.heading, this.speed, @JsonKey(name: 'updated_at') this.updatedAt}): super._();
+  
+
+@override final  String id;
+@override@JsonKey(name: 'route_id') final  String routeId;
+@override@JsonKey(name: 'broadcaster_id') final  String? broadcasterId;
+@override final  double latitude;
+@override final  double longitude;
+@override final  double? heading;
+@override final  double? speed;
+@override@JsonKey(name: 'updated_at') final  DateTime? updatedAt;
+
+/// Create a copy of BusSession
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$BusSessionCopyWith<_BusSession> get copyWith => __$BusSessionCopyWithImpl<_BusSession>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BusSession&&(identical(other.id, id) || other.id == id)&&(identical(other.routeId, routeId) || other.routeId == routeId)&&(identical(other.broadcasterId, broadcasterId) || other.broadcasterId == broadcasterId)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.heading, heading) || other.heading == heading)&&(identical(other.speed, speed) || other.speed == speed)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,routeId,broadcasterId,latitude,longitude,heading,speed,updatedAt);
+
+@override
+String toString() {
+  return 'BusSession(id: $id, routeId: $routeId, broadcasterId: $broadcasterId, latitude: $latitude, longitude: $longitude, heading: $heading, speed: $speed, updatedAt: $updatedAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$BusSessionCopyWith<$Res> implements $BusSessionCopyWith<$Res> {
+  factory _$BusSessionCopyWith(_BusSession value, $Res Function(_BusSession) _then) = __$BusSessionCopyWithImpl;
+@override @useResult
+$Res call({
+ String id,@JsonKey(name: 'route_id') String routeId,@JsonKey(name: 'broadcaster_id') String? broadcasterId, double latitude, double longitude, double? heading, double? speed,@JsonKey(name: 'updated_at') DateTime? updatedAt
+});
+
+
+
+
+}
+/// @nodoc
+class __$BusSessionCopyWithImpl<$Res>
+    implements _$BusSessionCopyWith<$Res> {
+  __$BusSessionCopyWithImpl(this._self, this._then);
+
+  final _BusSession _self;
+  final $Res Function(_BusSession) _then;
+
+/// Create a copy of BusSession
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? routeId = null,Object? broadcasterId = freezed,Object? latitude = null,Object? longitude = null,Object? heading = freezed,Object? speed = freezed,Object? updatedAt = freezed,}) {
+  return _then(_BusSession(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,routeId: null == routeId ? _self.routeId : routeId // ignore: cast_nullable_to_non_nullable
+as String,broadcasterId: freezed == broadcasterId ? _self.broadcasterId : broadcasterId // ignore: cast_nullable_to_non_nullable
+as String?,latitude: null == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double,longitude: null == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double,heading: freezed == heading ? _self.heading : heading // ignore: cast_nullable_to_non_nullable
+as double?,speed: freezed == speed ? _self.speed : speed // ignore: cast_nullable_to_non_nullable
+as double?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
+  ));
+}
+
+
+}
+
 // dart format on

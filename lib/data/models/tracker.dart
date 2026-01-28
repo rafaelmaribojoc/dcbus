@@ -81,3 +81,52 @@ abstract class ClusteredBus with _$ClusteredBus {
     );
   }
 }
+
+/// A bus tracking session (replaces ClusteredBus for new logic)
+@freezed
+abstract class BusSession with _$BusSession {
+  const BusSession._();
+
+  const factory BusSession({
+    required String id,
+    @JsonKey(name: 'route_id') required String routeId,
+    @JsonKey(name: 'broadcaster_id') String? broadcasterId,
+    required double latitude,
+    required double longitude,
+    double? heading,
+    double? speed,
+    @JsonKey(name: 'updated_at') DateTime? updatedAt,
+  }) = _BusSession;
+
+  /// Custom fromJson to handle PostGIS geography point format
+  factory BusSession.fromJson(Map<String, dynamic> json) {
+    // Handle PostGIS geography point format
+    final loc = json['current_location'];
+    double lat = 0, lng = 0;
+    
+    if (loc is String && loc.startsWith('POINT')) {
+      // Parse POINT(lng lat) format from PostGIS
+      final match = RegExp(r'POINT\(([\d.-]+) ([\d.-]+)\)').firstMatch(loc);
+      if (match != null) {
+        lng = double.parse(match.group(1)!);
+        lat = double.parse(match.group(2)!);
+      }
+    } else if (json.containsKey('latitude') && json.containsKey('longitude')) {
+      lat = (json['latitude'] as num).toDouble();
+      lng = (json['longitude'] as num).toDouble();
+    }
+    
+    return BusSession(
+      id: json['id'] as String,
+      routeId: json['route_id'] as String,
+      broadcasterId: json['broadcaster_id'] as String?,
+      latitude: lat,
+      longitude: lng,
+      heading: (json['heading'] as num?)?.toDouble(),
+      speed: (json['speed'] as num?)?.toDouble(),
+      updatedAt: json['updated_at'] != null 
+          ? DateTime.parse(json['updated_at'] as String) 
+          : null,
+    );
+  }
+}

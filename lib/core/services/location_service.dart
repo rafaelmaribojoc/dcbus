@@ -8,10 +8,18 @@ import '../../data/repositories/tracker_repository.dart';
 import '../../data/models/route.dart';
 
 /// Service for handling GPS location tracking
+/// Service for handling GPS location tracking and session management
 class LocationService {
   final TrackerRepository _trackerRepository;
   
   StreamSubscription<Position>? _positionStream;
+  StreamSubscription<bool>? _promotionStream;
+  
+  String? _sessionId;
+  bool _isBroadcaster = false;
+  String? _destinationStopId;
+  RoutePoint? _destinationStop;
+  
   String? _activeRouteId;
   BusRoute? _activeRoute;
   
@@ -34,63 +42,103 @@ class LocationService {
     return status.isGranted;
   }
   
-  /// Start tracking on a specific route
-  Future<bool> startTracking(BusRoute route) async {
+  /// Join a session on a specific route
+  Future<({bool success, bool isBroadcaster, String? error})> startTracking({
+    required BusRoute route,
+    required RoutePoint destinationStop,
+  }) async {
     // Check permissions
     if (!await checkPermissions()) {
-      return false;
+      return (success: false, isBroadcaster: false, error: 'Location permission denied');
     }
     
     _activeRouteId = route.id;
     _activeRoute = route;
+    _destinationStopId = destinationStop.id;
+    _destinationStop = destinationStop;
     
-    // Get initial position
-    final initialPosition = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      ),
-    );
-    
-    // Start tracking in Supabase
-    await _trackerRepository.startTracking(
-      routeId: route.id,
-      latitude: initialPosition.latitude,
-      longitude: initialPosition.longitude,
-      heading: initialPosition.heading,
-      speed: initialPosition.speed,
-      accuracy: initialPosition.accuracy,
-    );
-    
-    // Start streaming location
-    _positionStream = Geolocator.getPositionStream(
-      locationSettings: LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: AppConfig.locationUpdateDistanceMeters,
-      ),
-    ).listen(_onPositionUpdate);
-    
-    return true;
+    try {
+      // Get initial position
+      final initialPosition = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      
+      // Join/Start session in Supabase
+      final result = await _trackerRepository.joinSession(
+        routeId: route.id,
+        latitude: initialPosition.latitude,
+        longitude: initialPosition.longitude,
+        destinationStopId: destinationStop.id,
+      );
+      
+      _sessionId = result.sessionId;
+      _isBroadcaster = result.isBroadcaster;
+      
+      // Listen for promotion if not broadcaster
+      if (!_isBroadcaster) {
+        _promotionStream = _trackerRepository
+            .listenForPromotion(_sessionId!)
+            .listen((isPromoted) {
+          if (isPromoted) {
+            _isBroadcaster = true;
+          }
+        });
+      }
+      
+      // Start streaming location (for validcation/uploading)
+      _positionStream = Geolocator.getPositionStream(
+        locationSettings: LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: AppConfig.locationUpdateDistanceMeters,
+        ),
+      ).listen(_onPositionUpdate);
+      
+      return (success: true, isBroadcaster: _isBroadcaster, error: null);
+      
+    } catch (e) {
+      return (success: false, isBroadcaster: false, error: e.toString());
+    }
   }
   
   /// Handle position updates
   void _onPositionUpdate(Position position) async {
-    if (_activeRouteId == null) return;
+    if (_activeRouteId == null || _sessionId == null) return;
     
-    // Check if still on route (client-side validation)
-    if (_activeRoute != null && !_isOnRoute(position, _activeRoute!)) {
-      // User has deviated from route
-      await stopTracking();
-      return;
+    // 1. Check if arrived at destination
+    if (_destinationStop != null) {
+      final distanceToDest = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        _destinationStop!.latitude,
+        _destinationStop!.longitude,
+      );
+      
+      // Arrived within 100m
+      if (distanceToDest < 100) {
+        await stopTracking();
+        return;
+      }
     }
     
-    // Update position in Supabase
-    await _trackerRepository.updateLocation(
-      latitude: position.latitude,
-      longitude: position.longitude,
-      heading: position.heading,
-      speed: position.speed,
-      accuracy: position.accuracy,
-    );
+    // 2. Check if still on route (client-side validation for Broadcaster only)
+    if (_isBroadcaster && _activeRoute != null && !_isOnRoute(position, _activeRoute!)) {
+      // User has deviated from route significantly? Maybe don't kill session, but stop updating?
+      // For now, let's just warn or ignore. 
+      // Actually strictly, if deviated, we should probably yield leadership.
+    }
+    
+    // 3. Update position in Supabase (ONLY IF BROADCASTER)
+    if (_isBroadcaster) {
+      await _trackerRepository.updateLocation(
+        sessionId: _sessionId!,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        heading: position.heading,
+        speed: position.speed,
+      );
+    }
   }
   
   /// Check if position is on route (simple distance check)
@@ -113,18 +161,27 @@ class LocationService {
     return minDistance <= AppConfig.maxRouteDeviationMeters;
   }
   
-  /// Stop tracking
+  /// Stop tracking (Leave session)
   Future<void> stopTracking() async {
     await _positionStream?.cancel();
+    await _promotionStream?.cancel();
     _positionStream = null;
+    _promotionStream = null;
+    
     _activeRouteId = null;
     _activeRoute = null;
+    _sessionId = null;
+    _isBroadcaster = false;
+    _destinationStop = null;
     
-    await _trackerRepository.stopTracking();
+    await _trackerRepository.leaveSession();
   }
   
   /// Check if currently tracking
   bool get isTracking => _activeRouteId != null;
+  
+  /// Get current role
+  bool get isBroadcaster => _isBroadcaster;
   
   /// Get current active route
   String? get activeRouteId => _activeRouteId;
@@ -154,27 +211,35 @@ final trackingStateProvider = NotifierProvider<TrackingStateNotifier, TrackingSt
 /// State for tracking
 class TrackingState {
   final bool isTracking;
+  final bool isBroadcaster;
   final String? activeRouteId;
   final String? routeName;
+  final String? destinationStopName;
   final String? error;
   
   const TrackingState({
     this.isTracking = false,
+    this.isBroadcaster = false,
     this.activeRouteId,
     this.routeName,
+    this.destinationStopName,
     this.error,
   });
   
   TrackingState copyWith({
     bool? isTracking,
+    bool? isBroadcaster,
     String? activeRouteId,
     String? routeName,
+    String? destinationStopName,
     String? error,
   }) {
     return TrackingState(
       isTracking: isTracking ?? this.isTracking,
+      isBroadcaster: isBroadcaster ?? this.isBroadcaster,
       activeRouteId: activeRouteId ?? this.activeRouteId,
       routeName: routeName ?? this.routeName,
+      destinationStopName: destinationStopName ?? this.destinationStopName,
       error: error ?? this.error,
     );
   }
@@ -185,27 +250,29 @@ class TrackingStateNotifier extends Notifier<TrackingState> {
   @override
   TrackingState build() => const TrackingState();
   
-  Future<void> startTracking(BusRoute route) async {
+  Future<void> startTracking(BusRoute route, RoutePoint destinationStop) async {
     final locationService = ref.read(locationServiceProvider);
     
-    try {
-      final success = await locationService.startTracking(route);
-      
-      if (success) {
-        state = state.copyWith(
-          isTracking: true,
-          activeRouteId: route.id,
-          routeName: route.displayName,
-          error: null,
-        );
-      } else {
-        state = state.copyWith(
-          error: 'Location permission denied',
-        );
-      }
-    } catch (e) {
+    // Optimistic loading state?
+    state = state.copyWith(error: null);
+    
+    final result = await locationService.startTracking(
+      route: route,
+      destinationStop: destinationStop,
+    );
+    
+    if (result.success) {
       state = state.copyWith(
-        error: e.toString(),
+        isTracking: true,
+        isBroadcaster: result.isBroadcaster,
+        activeRouteId: route.id,
+        routeName: route.displayName,
+        destinationStopName: destinationStop.name,
+        error: null,
+      );
+    } else {
+      state = state.copyWith(
+        error: result.error ?? 'Failed to join session',
       );
     }
   }

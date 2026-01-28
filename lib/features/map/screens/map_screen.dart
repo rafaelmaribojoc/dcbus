@@ -6,19 +6,18 @@ import 'package:flutter/services.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/providers/stop_navigation_provider.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/services/route_service.dart';
 import '../../../core/theme/design_system.dart';
 import '../../../core/widgets/bouncy_button.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../data/models/route.dart';
 import '../../../data/repositories/route_repository.dart';
-import '../../../data/repositories/tracker_repository.dart';
+import '../../../data/models/tracker.dart';
 import '../../../data/repositories/tracker_repository.dart';
 import '../../tracking/screens/route_tracking_sheet.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 
-/// Main map screen showing routes and live buses
-/// Redesigned with Antigravity Design System
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
@@ -32,6 +31,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   PointAnnotationManager? _stopMarkerManager;
   PointAnnotationManager? _routeStopsManager;
   PolylineAnnotationManager? _routeLineManager;
+  PointAnnotationManager? _busMarkerManager;
   RoutePoint? _highlightedStop;
   _NearestStopData? _nearestStopData;
   final Map<String, RoutePoint> _stopAnnotationMap = {};
@@ -54,6 +54,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _flyToStop(next.targetStop!, next.route);
         // Clear the navigation target
         ref.read(stopNavigationProvider.notifier).clearTarget();
+      }
+    });
+
+    // Draw buses when data changes
+    busesAsync.whenData((buses) {
+      if (_busMarkerManager != null) {
+        _drawBuses(buses);
       }
     });
     
@@ -122,6 +129,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     : DesignSystem.actionColor,
                 onDismiss: _clearHighlightedStop,
                 nearestData: _nearestStopData,
+                onStartTracking: _selectedRoute != null 
+                    ? () => _startTrackingFromStop(_selectedRoute!, _highlightedStop!) 
+                    : null,
               ),
             ),
         ],
@@ -148,45 +158,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             ),
           ),
-          
-          if (_selectedRoute != null) ...[
-            const SizedBox(height: DesignSystem.spacingS),
-            BouncyButton(
-              onTap: () => _showTrackingSheet(_selectedRoute!),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: DesignSystem.spacingM,
-                  vertical: DesignSystem.spacingS,
-                ),
-                decoration: BoxDecoration(
-                  color: DesignSystem.actionColor,
-                  borderRadius: DesignSystem.borderRadiusM,
-                  boxShadow: DesignSystem.shadowMedium,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.directions_bus,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: DesignSystem.spacingXS),
-                    const Text(
-                      "I'm on this bus",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
+  }
+
+  Future<void> _startTrackingFromStop(BusRoute route, RoutePoint stop) async {
+    // 1. Start Tracking
+    await ref.read(trackingStateProvider.notifier).startTracking(route, stop);
+    
+    // 2. Open Sheet (it will show tracking status now)
+    _showTrackingSheet(route);
+    
+    // 3. Clear highlight to see map better
+    _clearHighlightedStop();
   }
   
   void _onMapCreated(MapboxMap mapboxMap) async {
@@ -196,6 +181,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _routeLineManager = await mapboxMap.annotations.createPolylineAnnotationManager();
     _stopMarkerManager = await mapboxMap.annotations.createPointAnnotationManager();
     _routeStopsManager = await mapboxMap.annotations.createPointAnnotationManager();
+    _busMarkerManager = await mapboxMap.annotations.createPointAnnotationManager();
     
     // Handle taps on station icons
     _routeStopsManager?.addOnPointAnnotationClickListener(_RouteStopsClickListener(this));
@@ -203,7 +189,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // Add custom bus icon to style
     try {
       final busIconBytes = await _buildBusIconImage();
+      // Add 'bus-icon' for stops
       await mapboxMap.style.addStyleImage("bus-icon", 2.0, MbxImage(width: 64, height: 64, data: busIconBytes), false, [], [], null);
+      
+      // Add 'live-bus-icon' for moving buses (filled style)
+      final liveBusBytes = await _buildLiveBusIconImage();
+      await mapboxMap.style.addStyleImage("live-bus-icon", 2.0, MbxImage(width: 80, height: 80, data: liveBusBytes), false, [], [], null);
     } catch (e) {
       debugPrint("Error adding bus icon: $e");
     }
@@ -233,6 +224,58 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         pulsingMaxRadius: 30.0,
       ),
     );
+  }
+
+// ... existing code ...
+
+// In _StopInfoCard class (I will update this class definition separately or in valid chunk)
+// Wait, I can't update two separate blocks easily with replace_file_content if they are far apart.
+// The StopInfoCard definition is at the bottom.
+// I will split this into two calls.
+// First call: Update build() to remove FAB and add logic to StopInfoCard instantiation.
+// Second call: Update StopInfoCard class definition.
+
+// This tool call handles the build method and _startTrackingFromStop insertion.
+
+
+  Future<Uint8List> _buildLiveBusIconImage() async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const size = Size(80, 80);
+    
+    final paint = Paint()
+      ..color = DesignSystem.actionColor
+      ..style = PaintingStyle.fill;
+    
+    // Draw pulsing-like effect (outer circle alpha)
+    canvas.drawCircle(Offset(size.width / 2, size.height / 2), 38, paint..color = DesignSystem.actionColor.withValues(alpha: 0.3));
+    
+    // Draw main circle
+    canvas.drawCircle(Offset(size.width / 2, size.height / 2), 30, paint..color = DesignSystem.actionColor.withValues(alpha: 1.0));
+    
+    // Draw bus icon in white
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    textPainter.text = TextSpan(
+      text: String.fromCharCode(Icons.directions_bus_rounded.codePoint),
+      style: TextStyle(
+        fontSize: 32,
+        fontFamily: Icons.directions_bus_rounded.fontFamily,
+        color: Colors.white,
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas, 
+      Offset((size.width - textPainter.width) / 2, (size.height - textPainter.height) / 2),
+    );
+    
+    // Draw small directional arrow (triangle) at top if needed, 
+    // but rotation handles orientation usually.
+    
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(80, 80);
+    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
   }
 
   Future<Uint8List> _buildBusIconImage() async {
@@ -276,8 +319,42 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return byteData!.buffer.asUint8List();
   }
   
+  void _drawBuses(List<BusSession> buses) async {
+    if (_busMarkerManager == null) return;
+    
+    await _busMarkerManager!.deleteAll();
+    
+    // Only draw buses for selected route if filters applied?
+    // User sees "All Buses" or "Selected Route Buses"? 
+    // busesAsync comes from allBusesProvider, containing ALL sessions.
+    
+    for (final bus in buses) {
+      if (_selectedRoute != null && bus.routeId != _selectedRoute!.id) continue;
+      
+      await _busMarkerManager!.create(
+        PointAnnotationOptions(
+          geometry: Point(coordinates: Position(bus.longitude, bus.latitude)),
+          iconImage: "live-bus-icon",
+          iconSize: 1.0, 
+          iconRotate: bus.heading, 
+          textField: _selectedRoute == null ? "R${bus.routeId.split('-').first}" : null, // Show route number if overview
+          textSize: 12.0,
+          textOffset: [0, 2.5],
+          textColor: Colors.black.value,
+          textHaloColor: Colors.white.value,
+          textHaloWidth: 2.0,
+        ),
+      );
+    }
+  }
+  
   void _onRouteSelected(BusRoute? route) {
     setState(() => _selectedRoute = route);
+    
+    // Redraw buses to filter
+    ref.read(allBusesProvider).whenData((buses) {
+      if (_busMarkerManager != null) _drawBuses(buses);
+    });
     
     if (route != null) {
       // Find all variants of this route (e.g., AM/PM)
@@ -795,16 +872,16 @@ class _StopInfoCard extends StatelessWidget {
   final RoutePoint stop;
   final Color routeColor;
   final VoidCallback onDismiss;
+  final VoidCallback? onStartTracking;
   final _NearestStopData? nearestData;
 
   const _StopInfoCard({
     required this.stop,
     required this.routeColor,
     required this.onDismiss,
+    this.onStartTracking,
     this.nearestData,
   });
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -812,7 +889,7 @@ class _StopInfoCard extends StatelessWidget {
       padding: const EdgeInsets.all(DesignSystem.spacingM),
       borderRadius: DesignSystem.borderRadiusM,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
@@ -888,6 +965,39 @@ class _StopInfoCard extends StatelessWidget {
                   nearestData!.travelTimes['Car']!,
                 ),
               ],
+            ),
+          ],
+          
+          // "Get Off Here" Button
+          if (onStartTracking != null) ...[
+            const SizedBox(height: DesignSystem.spacingM),
+            BouncyButton(
+              onTap: onStartTracking!,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: routeColor,
+                  borderRadius: DesignSystem.borderRadiusM,
+                  boxShadow: [
+                    BoxShadow(
+                      color: routeColor.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text(
+                    "Get Off Here",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ],

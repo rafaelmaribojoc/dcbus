@@ -8,19 +8,35 @@ import '../../../core/widgets/bouncy_button.dart';
 import '../../../data/models/route.dart';
 import '../../../data/repositories/tracker_repository.dart';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/providers/stop_navigation_provider.dart';
+import '../../../core/services/location_service.dart';
+import '../../../core/theme/design_system.dart';
+import '../../../core/widgets/bouncy_button.dart';
+import '../../../data/models/route.dart';
+import '../../../data/repositories/tracker_repository.dart';
+
 /// Bottom sheet for starting tracking on a route
 /// Redesigned with Antigravity Design System
-class RouteTrackingSheet extends ConsumerWidget {
+class RouteTrackingSheet extends ConsumerStatefulWidget {
   final BusRoute route;
   
   const RouteTrackingSheet({super.key, required this.route});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RouteTrackingSheet> createState() => _RouteTrackingSheetState();
+}
+
+class _RouteTrackingSheetState extends ConsumerState<RouteTrackingSheet> {
+
+  @override
+  Widget build(BuildContext context) {
     final trackingState = ref.watch(trackingStateProvider);
-    final busesAsync = ref.watch(busesOnRouteProvider(route.id));
+    final busesAsync = ref.watch(busesOnRouteProvider(widget.route.id));
     final routeColor = Color(
-      int.parse(route.color.replaceFirst('#', '0xFF')),
+      int.parse(widget.route.color.replaceFirst('#', '0xFF')),
     );
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
@@ -60,7 +76,7 @@ class RouteTrackingSheet extends ConsumerWidget {
                 children: [
                   // Large route badge
                   Hero(
-                    tag: 'route_${route.id}',
+                    tag: 'route_${widget.route.id}',
                     child: Container(
                       width: 72,
                       height: 72,
@@ -70,7 +86,7 @@ class RouteTrackingSheet extends ConsumerWidget {
                       ),
                       child: Center(
                         child: Text(
-                          route.routeNumber,
+                          widget.route.routeNumber,
                           style: DesignSystem.headingXL.copyWith(
                             color: routeColor,
                             fontWeight: FontWeight.w700,
@@ -85,7 +101,7 @@ class RouteTrackingSheet extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          route.name,
+                          widget.route.name,
                           style: DesignSystem.headingM.copyWith(
                             color: isDark ? Colors.white : Colors.black87,
                           ),
@@ -99,17 +115,17 @@ class RouteTrackingSheet extends ConsumerWidget {
                                 vertical: 3,
                               ),
                               decoration: BoxDecoration(
-                                color: route.timePeriod == 'AM'
+                                color: widget.route.timePeriod == 'AM'
                                     ? DesignSystem.warningColor.withValues(alpha: 0.15)
                                     : const Color(0xFF5C6BC0).withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                route.timePeriod,
+                                widget.route.timePeriod,
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: route.timePeriod == 'AM'
+                                  color: widget.route.timePeriod == 'AM'
                                       ? DesignSystem.warningColor
                                       : const Color(0xFF5C6BC0),
                                 ),
@@ -117,7 +133,7 @@ class RouteTrackingSheet extends ConsumerWidget {
                             ),
                             const SizedBox(width: DesignSystem.spacingXS),
                             Text(
-                              '${route.formattedStartTime} - ${route.formattedEndTime}',
+                              '${widget.route.formattedStartTime} - ${widget.route.formattedEndTime}',
                               style: DesignSystem.labelM.copyWith(
                                 color: Colors.grey.shade500,
                               ),
@@ -168,43 +184,49 @@ class RouteTrackingSheet extends ConsumerWidget {
               
               const SizedBox(height: DesignSystem.spacingM),
               
-              // Stops preview
+              // Stops preview header
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Stops',
-                    style: DesignSystem.headingM.copyWith(
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(width: DesignSystem.spacingXS),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: routeColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${route.stops.length}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: routeColor,
+                  Row(
+                    children: [
+                      Text(
+                        'Stops',
+                        style: DesignSystem.headingM.copyWith(
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: DesignSystem.spacingXS),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: routeColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${widget.route.stops.length}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: routeColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
               const SizedBox(height: DesignSystem.spacingS),
               
-              // Stops list with connectors - ALL stops shown
-              ...route.stops.asMap().entries.map((entry) {
+              // Stops list
+              ...widget.route.stops.asMap().entries.map((entry) {
                 final index = entry.key;
                 final stop = entry.value;
-                final isLast = index == route.stops.length - 1;
+                final isLast = index == widget.route.stops.length - 1;
+                final isSelected = false; // logic removed
                 
                 return BouncyButton(
                   onTap: () => _navigateToStop(context, ref, stop),
@@ -236,15 +258,14 @@ class RouteTrackingSheet extends ConsumerWidget {
                         ),
                         const SizedBox(width: DesignSystem.spacingXS),
                         Expanded(
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(
                               horizontal: DesignSystem.spacingS,
                               vertical: DesignSystem.spacingXS,
                             ),
                             decoration: BoxDecoration(
-                              color: isDark 
-                                  ? DesignSystem.darkSurfaceVariant 
-                                  : DesignSystem.lightSurfaceVariant,
+                              color: isDark ? DesignSystem.darkSurfaceVariant : DesignSystem.lightSurfaceVariant,
                               borderRadius: DesignSystem.borderRadiusS,
                             ),
                             child: Row(
@@ -295,7 +316,7 @@ class RouteTrackingSheet extends ConsumerWidget {
                 iconColor: DesignSystem.actionColor,
                 backgroundColor: DesignSystem.actionColor.withValues(alpha: 0.1),
                 title: 'How does this help?',
-                subtitle: 'When you tap "I\'m on this bus", your location helps other commuters see where the bus is. Shared anonymously, only while on route.',
+                subtitle: 'Your location helps other commuters see where the bus is. Shared anonymously.',
               ),
             ],
           ),
@@ -307,7 +328,7 @@ class RouteTrackingSheet extends ConsumerWidget {
   /// Navigate to a stop on the map
   void _navigateToStop(BuildContext context, WidgetRef ref, RoutePoint stop) {
     // Set the navigation target
-    ref.read(stopNavigationProvider.notifier).navigateToStop(stop, route);
+    ref.read(stopNavigationProvider.notifier).navigateToStop(stop, widget.route);
     // Close the sheet and switch to map tab
     Navigator.of(context).pop();
   }
@@ -320,74 +341,77 @@ class RouteTrackingSheet extends ConsumerWidget {
     bool isDark,
   ) {
     // Currently tracking this route
-    if (trackingState.isTracking && trackingState.activeRouteId == route.id) {
-      return BouncyButton(
-        onTap: () {
-          ref.read(trackingStateProvider.notifier).stopTracking();
-          Navigator.of(context).pop();
-        },
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: DesignSystem.spacingS),
-          decoration: BoxDecoration(
-            color: DesignSystem.errorColor.withValues(alpha: 0.1),
-            borderRadius: DesignSystem.borderRadiusS,
-            border: Border.all(color: DesignSystem.errorColor),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.stop_circle_outlined, color: DesignSystem.errorColor),
-              SizedBox(width: DesignSystem.spacingXS),
-              Text(
-                'Stop Tracking',
-                style: TextStyle(
-                  color: DesignSystem.errorColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    
-    // Tracking a different route
-    if (trackingState.isTracking) {
+    if (trackingState.isTracking && trackingState.activeRouteId == widget.route.id) {
       return Column(
         children: [
-          _InfoCard(
-            icon: Icons.warning_amber,
-            iconColor: DesignSystem.warningColor,
-            backgroundColor: DesignSystem.warningColor.withValues(alpha: 0.1),
-            title: 'Already tracking ${trackingState.routeName}',
-            subtitle: 'Switch to track this route instead?',
+          // Role Indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: trackingState.isBroadcaster 
+                  ? DesignSystem.actionColor.withValues(alpha: 0.1)
+                  : Colors.grey.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: trackingState.isBroadcaster 
+                    ? DesignSystem.actionColor 
+                    : Colors.grey,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  trackingState.isBroadcaster ? Icons.wifi_tethering : Icons.people_outline,
+                  size: 16,
+                  color: trackingState.isBroadcaster ? DesignSystem.actionColor : Colors.grey,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  trackingState.isBroadcaster ? 'Broadcasting Location' : 'Passenger Mode',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: trackingState.isBroadcaster ? DesignSystem.actionColor : Colors.grey,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: DesignSystem.spacingS),
+          
+          // Show destination if known
+          if (trackingState.destinationStopName != null)
+             _InfoCard(
+              icon: Icons.flag,
+              iconColor: DesignSystem.actionColor,
+              backgroundColor: DesignSystem.actionColor.withValues(alpha: 0.1),
+              title: 'Destination: ${trackingState.destinationStopName}',
+              subtitle: 'Tracking will end automatically when you arrive.',
+            ),
+          const SizedBox(height: DesignSystem.spacingS),
           BouncyButton(
-            onTap: () async {
-              await ref.read(trackingStateProvider.notifier).stopTracking();
-              await ref.read(trackingStateProvider.notifier).startTracking(route);
-              if (context.mounted) Navigator.of(context).pop();
+            onTap: () {
+              ref.read(trackingStateProvider.notifier).stopTracking();
+              Navigator.of(context).pop();
             },
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: DesignSystem.spacingS),
               decoration: BoxDecoration(
-                color: routeColor.withValues(alpha: 0.1),
+                color: DesignSystem.errorColor.withValues(alpha: 0.1),
                 borderRadius: DesignSystem.borderRadiusS,
-                border: Border.all(color: routeColor),
+                border: Border.all(color: DesignSystem.errorColor),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.swap_horiz, color: routeColor),
-                  const SizedBox(width: DesignSystem.spacingXS),
+                  Icon(Icons.stop_circle_outlined, color: DesignSystem.errorColor),
+                  SizedBox(width: DesignSystem.spacingXS),
                   Text(
-                    'Switch to this route',
+                    'Stop Tracking',
                     style: TextStyle(
-                      color: routeColor,
+                      color: DesignSystem.errorColor,
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
                     ),
@@ -400,36 +424,28 @@ class RouteTrackingSheet extends ConsumerWidget {
       );
     }
     
-    // Not tracking - show primary CTA
-    return BouncyButton(
-      onTap: () async {
-        await ref.read(trackingStateProvider.notifier).startTracking(route);
-        if (context.mounted) Navigator.of(context).pop();
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: DesignSystem.spacingS),
-        decoration: BoxDecoration(
-          color: DesignSystem.actionColor,
-          borderRadius: DesignSystem.borderRadiusS,
-          boxShadow: DesignSystem.shadowMedium,
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.directions_bus, color: Colors.white),
-            SizedBox(width: DesignSystem.spacingXS),
-            Text(
-              "I'm on this bus",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      ),
+    // Tracking a different route
+    if (trackingState.isTracking) {
+      return Column(
+        children: [
+          _InfoCard(
+            icon: Icons.warning_amber,
+            iconColor: DesignSystem.warningColor,
+            backgroundColor: DesignSystem.warningColor.withValues(alpha: 0.1),
+            title: 'Already tracking ${trackingState.routeName}',
+            subtitle: 'Stop that session before starting a new one.',
+          ),
+        ],
+      );
+    }
+    
+    // Not tracking - Instructions
+    return _InfoCard(
+      icon: Icons.touch_app,
+      iconColor: Colors.grey,
+      backgroundColor: Colors.grey.withValues(alpha: 0.1),
+      title: 'Tap a stop on the map to start tracking',
+      subtitle: 'Select your destination station on the map to begin your trip.',
     );
   }
 }
