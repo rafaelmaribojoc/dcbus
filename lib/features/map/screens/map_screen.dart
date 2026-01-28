@@ -77,30 +77,35 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             onMapCreated: _onMapCreated,
           ),
           
-          // Route selector chip bar with glass effect
+          // Top Bar: Search + Status
           Positioned(
             top: MediaQuery.of(context).padding.top + DesignSystem.spacingS,
             left: DesignSystem.spacingS,
             right: DesignSystem.spacingS,
-            child: routesAsync.when(
-              data: (routes) => _RouteChipBar(
-                routes: routes,
-                selectedRoute: _selectedRoute,
-                onRouteSelected: _onRouteSelected,
-              ),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
-          ),
-          
-          // Bus count overlay with glass effect
-          Positioned(
-            bottom: DesignSystem.spacingM,
-            left: DesignSystem.spacingS,
-            child: busesAsync.when(
-              data: (buses) => _BusCountBadge(count: buses.length),
-              loading: () => const _BusCountBadge(count: 0),
-              error: (_, __) => const _BusCountBadge(count: 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Search Bar (Expanded)
+                Expanded(
+                  child: routesAsync.when(
+                    data: (routes) => _MapSearchBar(
+                      routes: routes,
+                      selectedRoute: _selectedRoute,
+                      onRouteSelected: _onRouteSelected,
+                    ),
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+                ),
+                const SizedBox(width: DesignSystem.spacingS),
+                
+                // Status Badge (Compact)
+                busesAsync.when(
+                  data: (buses) => _BusCountBadge(count: buses.length),
+                  loading: () => const _BusCountBadge(count: 0),
+                  error: (_, __) => const _BusCountBadge(count: 0),
+                ),
+              ],
             ),
           ),
           
@@ -614,70 +619,140 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 }
 
-/// Horizontal scrollable route filter chips with glass effect
-class _RouteChipBar extends StatelessWidget {
+/// Floating search bar style route selector
+class _MapSearchBar extends StatefulWidget {
   final List<BusRoute> routes;
   final BusRoute? selectedRoute;
   final ValueChanged<BusRoute?> onRouteSelected;
   
-  const _RouteChipBar({
+  const _MapSearchBar({
     required this.routes,
     this.selectedRoute,
     required this.onRouteSelected,
   });
 
   @override
+  State<_MapSearchBar> createState() => _MapSearchBarState();
+}
+
+class _MapSearchBarState extends State<_MapSearchBar> {
+  bool _isExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    // Group by route number (combine AM/PM)
-    final routeNumbers = routes.map((r) => r.routeNumber).toSet().toList()..sort();
-    
-    return GlassContainer(
-      padding: const EdgeInsets.symmetric(
-        vertical: DesignSystem.spacingXS,
-        horizontal: DesignSystem.spacingXS,
-      ),
-      borderRadius: DesignSystem.borderRadiusM,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        physics: DesignSystem.bouncingPhysics,
-        child: Row(
-          children: [
-            // All routes chip
-            Padding(
-              padding: const EdgeInsets.only(right: DesignSystem.spacingXS),
-              child: BouncyChip(
-                label: 'All',
-                selected: selectedRoute == null,
-                onTap: () => onRouteSelected(null),
+    // Group by route number
+    final routeNumbers = widget.routes.map((r) => r.routeNumber).toSet().toList()..sort();
+    final hasSelection = widget.selectedRoute != null;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Main Search Pill
+        BouncyButton(
+          onTap: () => setState(() => _isExpanded = !_isExpanded),
+          child: GlassContainer(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            borderRadius: BorderRadius.circular(30),
+            child: Row(
+              children: [
+                Icon(
+                  hasSelection ? Icons.directions_bus : Icons.search, 
+                  color: hasSelection 
+                      ? Color(int.parse(widget.selectedRoute!.color.replaceFirst('#', '0xFF')))
+                      : DesignSystem.actionColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    hasSelection 
+                        ? 'Route ${widget.selectedRoute!.routeNumber}'
+                        : 'Select Route',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: hasSelection ? Colors.black87 : Colors.black54,
+                    ),
+                  ),
+                ),
+                if (hasSelection)
+                  GestureDetector(
+                    onTap: () {
+                      widget.onRouteSelected(null);
+                      setState(() => _isExpanded = false);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, size: 14, color: Colors.black54),
+                    ),
+                  )
+                else
+                  Icon(
+                    _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    color: Colors.grey,
+                  ),
+              ],
+            ),
+          ),
+        ),
+
+        // Expanded Chip List
+        AnimatedCrossFade(
+          firstChild: const SizedBox(width: double.infinity),
+          secondChild: Container(
+            margin: const EdgeInsets.only(top: 8),
+            child: GlassContainer(
+              padding: const EdgeInsets.all(8),
+              borderRadius: DesignSystem.borderRadiusM,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  // "All" Chip
+                  BouncyChip(
+                    label: 'All',
+                    selected: !hasSelection,
+                    onTap: () {
+                      widget.onRouteSelected(null);
+                      setState(() => _isExpanded = false);
+                    },
+                  ),
+                  // Route Chips
+                  ...routeNumbers.map((routeNum) {
+                    final route = widget.routes.firstWhere((r) => r.routeNumber == routeNum);
+                    final isSelected = widget.selectedRoute?.routeNumber == routeNum;
+                    final routeColor = Color(
+                      int.parse(route.color.replaceFirst('#', '0xFF')),
+                    );
+                    
+                    return BouncyChip(
+                      label: routeNum,
+                      selected: isSelected,
+                      color: routeColor,
+                      onTap: () {
+                        widget.onRouteSelected(isSelected ? null : route);
+                        setState(() => _isExpanded = false);
+                      },
+                    );
+                  }),
+                ],
               ),
             ),
-            
-            // Individual route chips
-            ...routeNumbers.map((routeNum) {
-              final route = routes.firstWhere((r) => r.routeNumber == routeNum);
-              final isSelected = selectedRoute?.routeNumber == routeNum;
-              final routeColor = Color(
-                int.parse(route.color.replaceFirst('#', '0xFF')),
-              );
-              
-              return Padding(
-                padding: const EdgeInsets.only(right: DesignSystem.spacingXS),
-                child: BouncyChip(
-                  label: routeNum,
-                  selected: isSelected,
-                  color: routeColor,
-                  onTap: () => onRouteSelected(isSelected ? null : route),
-                ),
-              );
-            }),
-          ],
+          ),
+          crossFadeState: _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 300),
         ),
-      ),
+      ],
     );
   }
 }
 
-/// Badge showing active bus count with animated styling
+/// Compact Badge showing active bus count
 class _BusCountBadge extends StatelessWidget {
   final int count;
   
@@ -685,55 +760,27 @@ class _BusCountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = count > 0;
-    
     return GlassContainer(
-      padding: const EdgeInsets.symmetric(
-        horizontal: DesignSystem.spacingS,
-        vertical: DesignSystem.spacingXS + 4,
-      ),
-      borderRadius: DesignSystem.borderRadiusM,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      borderRadius: BorderRadius.circular(20),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Animated dot indicator
-          AnimatedContainer(
-            duration: DesignSystem.animMedium,
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: isActive ? DesignSystem.successColor : Colors.grey,
-              boxShadow: isActive
-                  ? [
-                      BoxShadow(
-                        color: DesignSystem.successColor.withValues(alpha: 0.5),
-                        blurRadius: 8,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                  : null,
+              color: DesignSystem.successColor,
             ),
           ),
-          const SizedBox(width: DesignSystem.spacingXS),
-          // Count with large emphasis (Data as UI)
+          const SizedBox(width: 6),
           Text(
             '$count',
-            style: TextStyle(
-              fontSize: 18,
+            style: const TextStyle(
+              fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: isActive ? DesignSystem.successColor : Colors.grey,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            'active',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: isActive 
-                  ? DesignSystem.successColor.withValues(alpha: 0.8) 
-                  : Colors.grey.withValues(alpha: 0.8),
+              color: Colors.black87,
             ),
           ),
         ],
