@@ -449,12 +449,17 @@ class _RouteTrackingSheetState extends ConsumerState<RouteTrackingSheet> {
     }
     
     // Not tracking - Instructions
-    return _InfoCard(
-      icon: Icons.touch_app,
-      iconColor: Colors.grey,
-      backgroundColor: Colors.grey.withValues(alpha: 0.1),
-      title: 'Tap a stop on the map to start tracking',
-      subtitle: 'Select your destination station on the map to begin your trip.',
+    // Not tracking - Instructions
+    return Column(
+      children: [
+        _InfoCard(
+          icon: Icons.directions_bus,
+          iconColor: Colors.grey,
+          backgroundColor: Colors.grey.withValues(alpha: 0.1),
+          title: 'Select a stop on the map',
+          subtitle: 'Choose "Wait Here" to watch arrivals, or "Ride Here" to share your location.',
+        ),
+      ],
     );
   }
 }

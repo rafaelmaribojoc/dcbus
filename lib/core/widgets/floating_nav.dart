@@ -27,12 +27,13 @@ class _FloatingNavState extends State<FloatingNav> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _controller = AnimationController(
-        duration: DesignSystem.animMedium, 
+        duration: const Duration(milliseconds: 600), // Slower, smoother expansion
         vsync: this
     );
     _expandAnimation = CurvedAnimation(
       parent: _controller,
-      curve: DesignSystem.animCurveDefault,
+      curve: Curves.easeOutBack, // Bouncy/Elastic effect
+      reverseCurve: Curves.easeInBack,
     );
   }
 

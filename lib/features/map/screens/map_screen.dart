@@ -121,6 +121,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ? Color(int.parse(_selectedRoute!.color.replaceFirst('#', '0xFF')))
                     : DesignSystem.actionColor,
                 onDismiss: _clearHighlightedStop,
+                onWait: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Monitoring arrivals at ${_highlightedStop!.name}...'),
+                        backgroundColor: DesignSystem.successColor,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                    _clearHighlightedStop();
+                },
                 nearestData: _nearestStopData,
                 onStartTracking: _selectedRoute != null 
                     ? () => _startTrackingFromStop(_selectedRoute!, _highlightedStop!) 
@@ -694,8 +706,41 @@ class _MapSearchBar extends StatefulWidget {
   State<_MapSearchBar> createState() => _MapSearchBarState();
 }
 
-class _MapSearchBarState extends State<_MapSearchBar> {
+class _MapSearchBarState extends State<_MapSearchBar> with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
+  late AnimationController _controller;
+  late Animation<double> _expandAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _expandAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggleExpanded() {
+    setState(() {
+      _isExpanded = !_isExpanded;
+      if (_isExpanded) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -709,7 +754,7 @@ class _MapSearchBarState extends State<_MapSearchBar> {
       children: [
         // Main Search Pill
         BouncyButton(
-          onTap: () => setState(() => _isExpanded = !_isExpanded),
+          onTap: _toggleExpanded,
           child: GlassContainer(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             borderRadius: BorderRadius.circular(30),
@@ -741,7 +786,7 @@ class _MapSearchBarState extends State<_MapSearchBar> {
                   GestureDetector(
                     onTap: () {
                       widget.onRouteSelected(null);
-                      setState(() => _isExpanded = false);
+                      _toggleExpanded();
                     },
                     child: Container(
                       padding: const EdgeInsets.all(4),
@@ -769,12 +814,14 @@ class _MapSearchBarState extends State<_MapSearchBar> {
         ),
 
         // Expanded Chip List
-        AnimatedCrossFade(
-          firstChild: const SizedBox(width: double.infinity),
-          secondChild: Container(
+        SizeTransition(
+          sizeFactor: _expandAnimation,
+          axisAlignment: -1.0,
+          child: Container(
+            width: double.infinity, // Full width responsively
             margin: const EdgeInsets.only(top: 8),
             child: GlassContainer(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               borderRadius: DesignSystem.borderRadiusM,
               child: Wrap(
                 spacing: 8,
@@ -786,7 +833,7 @@ class _MapSearchBarState extends State<_MapSearchBar> {
                     selected: !hasSelection,
                     onTap: () {
                       widget.onRouteSelected(null);
-                      setState(() => _isExpanded = false);
+                      _toggleExpanded();
                     },
                   ),
                   // Route Chips
@@ -803,7 +850,7 @@ class _MapSearchBarState extends State<_MapSearchBar> {
                       color: routeColor,
                       onTap: () {
                         widget.onRouteSelected(isSelected ? null : route);
-                        setState(() => _isExpanded = false);
+                        _toggleExpanded();
                       },
                     );
                   }),
@@ -811,8 +858,6 @@ class _MapSearchBarState extends State<_MapSearchBar> {
               ),
             ),
           ),
-          crossFadeState: _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 300),
         ),
       ],
     );
@@ -827,6 +872,7 @@ class _StopInfoCard extends StatelessWidget {
   final RoutePoint stop;
   final Color routeColor;
   final VoidCallback onDismiss;
+  final VoidCallback? onWait;
   final VoidCallback? onStartTracking;
   final _NearestStopData? nearestData;
 
@@ -834,12 +880,15 @@ class _StopInfoCard extends StatelessWidget {
     required this.stop,
     required this.routeColor,
     required this.onDismiss,
+    this.onWait,
     this.onStartTracking,
     this.nearestData,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return GlassContainer(
       padding: const EdgeInsets.all(DesignSystem.spacingM),
       borderRadius: DesignSystem.borderRadiusM,
@@ -923,36 +972,80 @@ class _StopInfoCard extends StatelessWidget {
             ),
           ],
           
-          // "Get Off Here" Button
+          // Action Buttons
           if (onStartTracking != null) ...[
             const SizedBox(height: DesignSystem.spacingM),
-            BouncyButton(
-              onTap: onStartTracking!,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: routeColor,
-                  borderRadius: DesignSystem.borderRadiusM,
-                  boxShadow: [
-                    BoxShadow(
-                      color: routeColor.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Text(
-                    "Get Off Here",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
+            Row(
+              children: [
+                // Wait Here Button (Passive)
+                Expanded(
+                  child: BouncyButton(
+                    onTap: onWait ?? onDismiss, 
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: DesignSystem.borderRadiusM,
+                        border: Border.all(
+                          color: isDark ? Colors.white54 : Colors.grey.shade400,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "Wait Here",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(width: DesignSystem.spacingS),
+                // Ride Here Button (Active)
+                Expanded(
+                  child: BouncyButton(
+                    onTap: onStartTracking!,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: routeColor,
+                        borderRadius: DesignSystem.borderRadiusM,
+                        boxShadow: [
+                          BoxShadow(
+                            color: routeColor.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            "Ride Here",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                          Text(
+                            "Share Location",
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],

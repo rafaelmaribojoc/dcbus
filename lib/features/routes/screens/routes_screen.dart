@@ -448,6 +448,7 @@ class GroupedRouteCard extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      showDragHandle: false, // Fix double drag handle
       builder: (context) => RouteTrackingSheet(route: groupedRoute.primaryRoute),
     );
   }
