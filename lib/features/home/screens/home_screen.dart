@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/stop_navigation_provider.dart';
 import '../../../core/theme/design_system.dart';
 import '../../../data/repositories/route_repository.dart';
+import '../../../core/widgets/floating_nav.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 import '../../map/screens/map_screen.dart';
 import '../../routes/screens/routes_screen.dart';
@@ -76,35 +77,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
       // Premium NavigationBar with custom styling
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: DesignSystem.shadowLight,
-        ),
-        child: NavigationBar(
-          selectedIndex: _currentIndex,
-          animationDuration: DesignSystem.animMedium,
-          onDestinationSelected: (index) {
-            setState(() => _currentIndex = index);
-          },
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
-              label: 'Home',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.map_outlined),
-              selectedIcon: Icon(Icons.map),
-              label: 'Map',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.route_outlined),
-              selectedIcon: Icon(Icons.route),
-              label: 'Routes',
-            ),
-          ],
-        ),
+      // Premium Floating Navigation
+      floatingActionButton: FloatingNav(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }

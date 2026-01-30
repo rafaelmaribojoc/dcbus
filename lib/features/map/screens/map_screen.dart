@@ -672,6 +672,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      showDragHandle: false, // Remove external drag handle
       builder: (context) => RouteTrackingSheet(route: route),
     );
   }
