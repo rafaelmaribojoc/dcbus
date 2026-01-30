@@ -10,6 +10,7 @@ import '../../../core/services/location_service.dart';
 import '../../../core/services/route_service.dart';
 import '../../../core/theme/design_system.dart';
 import '../../../core/widgets/bouncy_button.dart';
+import '../../../core/widgets/deep_flat_fab.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../data/models/route.dart';
 import '../../../data/repositories/route_repository.dart';
@@ -104,14 +105,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     error: (_, __) => const SizedBox.shrink(),
                   ),
                 ),
-                const SizedBox(width: DesignSystem.spacingS),
-                
-                // Status Badge (Compact)
-                busesAsync.when(
-                  data: (buses) => _BusCountBadge(count: buses.length),
-                  loading: () => const _BusCountBadge(count: 0),
-                  error: (_, __) => const _BusCountBadge(count: 0),
-                ),
               ],
             ),
           ),
@@ -136,27 +129,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
         ],
       ),
-      // Premium FABs with bouncy effect
+      // Premium FABs with Deep Flat styling
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Nearest Station FAB
-          BouncyButton(
-            onTap: _findNearestStop,
-            child: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: DesignSystem.lightSurface,
-                shape: BoxShape.circle,
-                boxShadow: DesignSystem.shadowMedium,
-              ),
-              child: const Icon(
-                Icons.near_me_rounded,
-                color: DesignSystem.actionColor,
-              ),
-            ),
+          // Nearest Station FAB (outlined style)
+          DeepFlatFabOutlined(
+            icon: Icons.near_me_rounded,
+            onPressed: _findNearestStop,
           ),
         ],
       ),
@@ -749,7 +730,9 @@ class _MapSearchBarState extends State<_MapSearchBar> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: hasSelection ? Colors.black87 : Colors.black54,
+                      color: hasSelection 
+                          ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)
+                          : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
                     ),
                   ),
                 ),
@@ -762,16 +745,22 @@ class _MapSearchBarState extends State<_MapSearchBar> {
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.2),
+                        color: Theme.of(context).brightness == Brightness.dark 
+                            ? Colors.white.withValues(alpha: 0.1) 
+                            : Colors.grey.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.close, size: 14, color: Colors.black54),
+                      child: Icon(
+                        Icons.close, 
+                        size: 14, 
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54
+                      ),
                     ),
                   )
                 else
                   Icon(
                     _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                    color: Colors.grey,
+                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.grey,
                   ),
               ],
             ),
@@ -829,42 +818,7 @@ class _MapSearchBarState extends State<_MapSearchBar> {
   }
 }
 
-/// Compact Badge showing active bus count
-class _BusCountBadge extends StatelessWidget {
-  final int count;
-  
-  const _BusCountBadge({required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassContainer(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      borderRadius: BorderRadius.circular(20),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: DesignSystem.successColor,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '$count',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// _BusCountBadge removed
 
 
 /// Info card for a selected stop with glass effect

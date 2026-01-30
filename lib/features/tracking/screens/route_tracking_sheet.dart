@@ -1,12 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../core/providers/stop_navigation_provider.dart';
-import '../../../core/services/location_service.dart';
-import '../../../core/theme/design_system.dart';
-import '../../../core/widgets/bouncy_button.dart';
-import '../../../data/models/route.dart';
-import '../../../data/repositories/tracker_repository.dart';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,13 +38,28 @@ class _RouteTrackingSheetState extends ConsumerState<RouteTrackingSheet> {
       maxChildSize: 0.9,
       expand: false,
       builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? DesignSystem.darkSurface : DesignSystem.lightSurface,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(DesignSystem.radiusL),
-            ),
+        // Glassmorphism container with BackdropFilter
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(DesignSystem.radiusL),
           ),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark 
+                    ? DesignSystem.darkSurface.withValues(alpha: 0.85)
+                    : DesignSystem.lightSurface.withValues(alpha: 0.9),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(DesignSystem.radiusL),
+                ),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.white.withValues(alpha: 0.2),
+                  width: 1.5,
+                ),
+              ),
           child: ListView(
             controller: scrollController,
             padding: const EdgeInsets.all(DesignSystem.spacingM),
@@ -319,6 +326,8 @@ class _RouteTrackingSheetState extends ConsumerState<RouteTrackingSheet> {
                 subtitle: 'Your location helps other commuters see where the bus is. Shared anonymously.',
               ),
             ],
+          ),
+            ),
           ),
         );
       },

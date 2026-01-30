@@ -177,6 +177,127 @@ class DesignSystem {
   );
 
   // ============================================
+  // NEO-BRUTALIST TYPOGRAPHY
+  // Large, high-contrast, bold fonts for readability
+  // ============================================
+  static const TextStyle headingHero = TextStyle(
+    fontSize: 48,
+    fontWeight: FontWeight.w900,
+    letterSpacing: -1.0,
+    height: 1.0,
+  );
+
+  static const TextStyle headingBold = TextStyle(
+    fontSize: 28,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.5,
+    height: 1.1,
+  );
+
+  static const TextStyle countdownText = TextStyle(
+    fontSize: 56,
+    fontWeight: FontWeight.w900,
+    letterSpacing: -2.0,
+    height: 1.0,
+  );
+
+  // ============================================
+  // DEEP FLAT SHADOWS (Colored Glows)
+  // Prominent soft shadows with color tinting
+  // ============================================
+  static List<BoxShadow> coloredShadow(Color color) => [
+    BoxShadow(
+      color: color.withValues(alpha: 0.4),
+      blurRadius: 16,
+      offset: const Offset(0, 6),
+    ),
+    BoxShadow(
+      color: color.withValues(alpha: 0.2),
+      blurRadius: 32,
+      offset: const Offset(0, 12),
+    ),
+  ];
+
+  static List<BoxShadow> get shadowDeepFlat => [
+    BoxShadow(
+      color: actionColor.withValues(alpha: 0.35),
+      blurRadius: 20,
+      offset: const Offset(0, 8),
+    ),
+    BoxShadow(
+      color: actionColor.withValues(alpha: 0.15),
+      blurRadius: 40,
+      offset: const Offset(0, 16),
+    ),
+  ];
+
+  // ============================================
+  // GRADIENT UTILITIES (Deep Flat Buttons)
+  // ============================================
+  static LinearGradient get actionGradient => const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [actionColorLight, actionColorDark],
+  );
+
+  static LinearGradient tileGradient(bool isDark) => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: isDark 
+      ? [darkSurface, darkSurfaceVariant]
+      : [lightSurface, const Color(0xFFF0F4F8)],
+  );
+
+  /// Hero card gradient - teal to dark for glassmorphism
+  static LinearGradient heroCardGradient(bool isDark) => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: isDark 
+      ? [const Color(0xFF2E6B6B), const Color(0xFF1A3A3A)] // Brighter start for better visibility
+      : [const Color(0xFF26A69A), const Color(0xFF00796B)],
+  );
+
+  /// Shadow for Stat Cards (Subtle lift in dark mode)
+  static List<BoxShadow> shadowStatCard(bool isDark) => isDark
+      ? [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.05), // Subtle glow
+            blurRadius: 2,
+            spreadRadius: 0,
+          ),
+        ]
+      : shadowLight;
+
+  /// Glow shadow for action buttons
+  static List<BoxShadow> glowShadow(Color color) => [
+    BoxShadow(
+      color: color.withValues(alpha: 0.5),
+      blurRadius: 12,
+      spreadRadius: 1,
+    ),
+    BoxShadow(
+      color: color.withValues(alpha: 0.3),
+      blurRadius: 24,
+      spreadRadius: 2,
+    ),
+  ];
+
+  /// Glass overlay color
+  static Color glassOverlay(bool isDark) => isDark
+      ? Colors.white.withValues(alpha: 0.05) // Reduced haze for cleaner text
+      : Colors.white.withValues(alpha: 0.25);
+
+  /// Stat card background
+  static Color statCardBackground(bool isDark) => isDark
+      ? const Color(0xFF21262D) // Brighter surface
+      : const Color(0xFFF5F7FA);
+
+  // ============================================
   // Page Transitions (Cupertino-style)
   // ============================================
   static PageRouteBuilder<T> slideRoute<T>(Widget page) {

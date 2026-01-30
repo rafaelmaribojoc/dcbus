@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/stop_navigation_provider.dart';
 import '../../../core/theme/design_system.dart';
 import '../../../data/repositories/route_repository.dart';
+import '../../dashboard/screens/dashboard_screen.dart';
 import '../../map/screens/map_screen.dart';
 import '../../routes/screens/routes_screen.dart';
 import '../../tracking/widgets/tracking_banner.dart';
@@ -20,6 +21,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
   
   final List<Widget> _screens = const [
+    DashboardScreen(),
     MapScreen(),
     RoutesScreen(),
   ];
@@ -35,9 +37,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     // Listen for stop navigation requests
     ref.listen<StopNavigationState>(stopNavigationProvider, (previous, next) {
-      if (next.targetStop != null && _currentIndex != 0) {
+      if (next.targetStop != null && _currentIndex != 1) {
         // Switch to map tab when a stop is selected
-        setState(() => _currentIndex = 0);
+        setState(() => _currentIndex = 1);
       }
     });
 
@@ -85,6 +87,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             setState(() => _currentIndex = index);
           },
           destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Home',
+            ),
             NavigationDestination(
               icon: Icon(Icons.map_outlined),
               selectedIcon: Icon(Icons.map),
